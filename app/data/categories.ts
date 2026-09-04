@@ -1,7 +1,7 @@
 export const categories = [
   "All",
-  "Coffee",
+  "Coffee and Bakery",
   "Restaurants",
   "Bars",
-  "Hidden gems",
+  "Hikes",
 ];

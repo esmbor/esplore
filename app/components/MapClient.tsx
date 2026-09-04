@@ -21,10 +21,10 @@ type MapClientProps = {
 };
 
 const categoryColors: Record<string, string> = {
-  Coffee: "#9A735A",
+  "Coffee and Bakery": "#9A735A",
   Restaurants: "#B47762",
   Bars: "#847184",
-  "Hidden gems": "#7E8E72",
+  Hikes: "#7E8E72",
 };
 
 export default function MapClient({ places }: MapClientProps) {
@@ -280,7 +280,7 @@ export default function MapClient({ places }: MapClientProps) {
                     className="h-2 w-2 rounded-full"
                     style={{
                       backgroundColor:
-                        categoryColors[category],
+                        categoryColors[category] ?? "#a8a29e",
                     }}
                   />
                 )}
