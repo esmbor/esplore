@@ -1,6 +1,8 @@
 import { supabase } from "../lib/supabase";
 import ExploreClient from "../components/ExploreClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function ExplorePage() {
   const { data: places, error } = await supabase
     .from("places")
