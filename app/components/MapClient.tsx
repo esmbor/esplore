@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import "leaflet/dist/leaflet.css";
 
 import { categories } from "../data/categories";
-import Header from "./Header";
 
 type MapPlace = {
   name: string;
@@ -246,8 +245,6 @@ export default function MapClient({ places }: MapClientProps) {
 
   return (
     <main className="min-h-screen bg-stone-50 text-stone-900">
-      <Header />
-
       <section className="mx-auto max-w-6xl px-6 py-16">
         <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
           All places
