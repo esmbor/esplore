@@ -15,7 +15,8 @@ export default async function MapPage() {
       country,
       category,
       latitude,
-      longitude
+      longitude,
+      googleMapsUrl
     `)
     .order("name");
 

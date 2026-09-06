@@ -34,6 +34,7 @@ export default async function PlacePage({ params }: PlacePageProps) {
       visited,
       latitude,
       longitude,
+      externalUrl,
       placeImages (
         imageUrl,
         sortOrder
@@ -96,14 +97,28 @@ export default async function PlacePage({ params }: PlacePageProps) {
             </p>
           </div>
 
-          {place.latitude !== 0 && place.longitude !== 0 && (
-            <PlaceMiniMap
-              latitude={place.latitude}
-              longitude={place.longitude}
-              slug={place.slug}
-              compact
-            />
-          )}
+          <div className="space-y-3">
+            {place.latitude !== 0 && place.longitude !== 0 && (
+              <PlaceMiniMap
+                latitude={place.latitude}
+                longitude={place.longitude}
+                slug={place.slug}
+                compact
+              />
+            )}
+
+            {place.externalUrl && (
+              <a
+                href={place.externalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"
+              >
+                <span>Website</span>
+                <span>→</span>
+              </a>
+            )}
+          </div>
         </div>
 
         <div className="mt-10 grid gap-6 border-y border-stone-200 py-6 sm:grid-cols-2 lg:grid-cols-4">

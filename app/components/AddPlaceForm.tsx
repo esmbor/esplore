@@ -14,8 +14,7 @@ export default function AddPlaceForm() {
   const router = useRouter();
 
   const [saving, setSaving] = useState(false);
-  const [errorMessage, setErrorMessage] =
-    useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const [mainImageFile, setMainImageFile] =
     useState<File | null>(null);
@@ -31,10 +30,7 @@ export default function AddPlaceForm() {
 
   useEffect(() => {
     return () => {
-      if (
-        mainImagePreview &&
-        mainImagePreview.startsWith("blob:")
-      ) {
+      if (mainImagePreview) {
         URL.revokeObjectURL(mainImagePreview);
       }
 
@@ -44,6 +40,13 @@ export default function AddPlaceForm() {
     };
   }, [mainImagePreview, galleryPreviews]);
 
+  function createSafeSlug(slug: string) {
+    return slug
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-");
+  }
+
   function handleMainImageChange(
     event: ChangeEvent<HTMLInputElement>
   ) {
@@ -51,20 +54,15 @@ export default function AddPlaceForm() {
 
     if (!file) return;
 
-    if (
-      mainImagePreview &&
-      mainImagePreview.startsWith("blob:")
-    ) {
+    if (mainImagePreview) {
       URL.revokeObjectURL(mainImagePreview);
     }
 
     setMainImageFile(file);
-    setMainImagePreview(
-      URL.createObjectURL(file)
-    );
+    setMainImagePreview(URL.createObjectURL(file));
   }
 
-  function handleGalleryChange(
+  function handleGalleryFilesChange(
     event: ChangeEvent<HTMLInputElement>
   ) {
     const files = Array.from(
@@ -86,48 +84,35 @@ export default function AddPlaceForm() {
     );
   }
 
-  function removeNewGalleryImage(
-    indexToRemove: number
-  ) {
-    const preview =
-      galleryPreviews[indexToRemove];
-
-    if (preview) {
-      URL.revokeObjectURL(preview);
-    }
+  function removeGalleryFile(index: number) {
+    URL.revokeObjectURL(galleryPreviews[index]);
 
     setGalleryFiles((current) =>
       current.filter(
-        (_, index) => index !== indexToRemove
+        (_, currentIndex) =>
+          currentIndex !== index
       )
     );
 
     setGalleryPreviews((current) =>
       current.filter(
-        (_, index) => index !== indexToRemove
+        (_, currentIndex) =>
+          currentIndex !== index
       )
     );
-  }
-
-  function createSafeSlug(slug: string) {
-    return slug
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, "-");
   }
 
   async function uploadMainImage(
     file: File,
     slug: string
   ) {
+    const safeSlug = createSafeSlug(slug);
+
     const extension =
       file.name
         .split(".")
         .pop()
         ?.toLowerCase() ?? "jpg";
-
-    const safeSlug =
-      createSafeSlug(slug);
 
     const filePath =
       `${safeSlug}/main-${Date.now()}.${extension}`;
@@ -153,12 +138,13 @@ export default function AddPlaceForm() {
   }
 
   async function uploadGalleryImages(
+    placeId: string,
     files: File[],
-    slug: string,
-    placeId: string
+    slug: string
   ) {
-    const safeSlug =
-      createSafeSlug(slug);
+    if (files.length === 0) return;
+
+    const safeSlug = createSafeSlug(slug);
 
     for (
       let index = 0;
@@ -239,110 +225,115 @@ export default function AddPlaceForm() {
           );
       }
 
+      const placeData = {
+        name,
+        slug,
+
+        city: String(
+          formData.get("city") ?? ""
+        ),
+
+        country: String(
+          formData.get("country") ?? ""
+        ),
+
+        category: String(
+          formData.get("category") ?? ""
+        ),
+
+        rating: Number(
+          formData.get("rating")
+        ),
+
+        description: String(
+          formData.get("description") ?? ""
+        ),
+
+        image: mainImageUrl,
+
+        whyRecommend: String(
+          formData.get("whyRecommend") ?? ""
+        ),
+
+        whatToOrder: String(
+          formData.get("whatToOrder") ?? ""
+        ),
+
+        goodToKnow: String(
+          formData.get("goodToKnow") ?? ""
+        ),
+
+        priceLevel: String(
+          formData.get("priceLevel") ?? ""
+        ),
+
+        worthADetour:
+          formData.get("worthADetour") ===
+          "on",
+
+        bestFor: String(
+          formData.get("bestFor") ?? ""
+        ),
+
+        visited: String(
+          formData.get("visited") ?? ""
+        ),
+
+        latitude: Number(
+          formData.get("latitude")
+        ),
+
+        longitude: Number(
+          formData.get("longitude")
+        ),
+
+        externalUrl: String(
+          formData.get("externalUrl") ?? ""
+        ).trim(),
+
+        googleMapsUrl: String(
+          formData.get("googleMapsUrl") ?? ""
+        ).trim(),
+
+        featured:
+          formData.get("featured") ===
+          "on",
+      };
+
       const {
-        data: newPlace,
-        error: placeError,
+        data: insertedPlace,
+        error: insertError,
       } = await supabase
         .from("places")
-        .insert({
-          name,
-          slug,
-
-          city: String(
-            formData.get("city") ?? ""
-          ),
-
-          country: String(
-            formData.get("country") ?? ""
-          ),
-
-          category: String(
-            formData.get("category") ?? ""
-          ),
-
-          rating: Number(
-            formData.get("rating")
-          ),
-
-          description: String(
-            formData.get("description") ?? ""
-          ),
-
-          image: mainImageUrl,
-
-          whyRecommend: String(
-            formData.get("whyRecommend") ?? ""
-          ),
-
-          whatToOrder: String(
-            formData.get("whatToOrder") ?? ""
-          ),
-
-          goodToKnow: String(
-            formData.get("goodToKnow") ?? ""
-          ),
-
-          priceLevel: String(
-            formData.get("priceLevel") ?? ""
-          ),
-
-          worthADetour:
-            formData.get("worthADetour") === "on",
-
-          bestFor: String(
-            formData.get("bestFor") ?? ""
-          ),
-
-          visited: String(
-            formData.get("visited") ?? ""
-          ),
-
-          latitude: Number(
-            formData.get("latitude")
-          ),
-
-          longitude: Number(
-            formData.get("longitude")
-          ),
-
-          featured:
-            formData.get("featured") === "on",
-        })
+        .insert(placeData)
         .select("id")
         .single();
 
-      if (placeError) {
-        throw placeError;
+      if (insertError) {
+        throw insertError;
       }
 
-      if (!newPlace) {
+      if (!insertedPlace) {
         throw new Error(
-          "The place was created but no place ID was returned."
+          "Could not create the place."
         );
       }
 
       if (galleryFiles.length > 0) {
         await uploadGalleryImages(
+          insertedPlace.id,
           galleryFiles,
-          slug,
-          newPlace.id
+          slug
         );
       }
 
       router.push("/admin");
       router.refresh();
     } catch (error: any) {
-      console.error("ADD PLACE ERROR:", {
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code,
-        error,
-      });
+      console.error("ADD PLACE ERROR:", error);
 
       setErrorMessage(
         error?.message ??
-          error?.details ??
           "Something went wrong while adding the place."
       );
 
@@ -355,6 +346,8 @@ export default function AddPlaceForm() {
       onSubmit={handleSubmit}
       className="space-y-8"
     >
+      {/* BASIC INFORMATION */}
+
       <div className="rounded-2xl border border-stone-200 bg-white p-6">
         <h2 className="text-lg font-semibold">
           Basic information
@@ -398,8 +391,13 @@ export default function AddPlaceForm() {
               id="category"
               name="category"
               required
+              defaultValue=""
               className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-stone-500"
             >
+              <option value="" disabled>
+                Select category
+              </option>
+
               {categories
                 .filter(
                   (category) =>
@@ -427,7 +425,7 @@ export default function AddPlaceForm() {
             <select
               id="rating"
               name="rating"
-              defaultValue="5"
+              defaultValue={5}
               className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-stone-500"
             >
               {[1, 2, 3, 4, 5].map(
@@ -444,6 +442,8 @@ export default function AddPlaceForm() {
           </div>
         </div>
       </div>
+
+      {/* DESCRIPTION */}
 
       <div className="rounded-2xl border border-stone-200 bg-white p-6">
         <h2 className="text-lg font-semibold">
@@ -473,6 +473,8 @@ export default function AddPlaceForm() {
         </div>
       </div>
 
+      {/* QUICK FACTS */}
+
       <div className="rounded-2xl border border-stone-200 bg-white p-6">
         <h2 className="text-lg font-semibold">
           Quick facts
@@ -482,19 +484,16 @@ export default function AddPlaceForm() {
           <Field
             label="Price level"
             name="priceLevel"
-            placeholder="€€"
           />
 
           <Field
             label="Best for"
             name="bestFor"
-            placeholder="Specialty coffee"
           />
 
           <Field
             label="Visited"
             name="visited"
-            placeholder="August 2026"
           />
 
           <label className="flex items-start gap-3 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
@@ -518,14 +517,53 @@ export default function AddPlaceForm() {
         </div>
       </div>
 
+      {/* LINKS */}
+
+      <div className="rounded-2xl border border-stone-200 bg-white p-6">
+        <h2 className="text-lg font-semibold">
+          Links
+        </h2>
+
+        <p className="mt-1 text-sm text-stone-500">
+          Add useful external links for this place.
+        </p>
+
+        <div className="mt-6 space-y-5">
+          <div>
+            <Field
+              label="Website"
+              name="externalUrl"
+              type="url"
+              placeholder="https://example.com"
+            />
+
+            <p className="mt-2 text-xs leading-5 text-stone-400">
+              This can also be an Instagram page, booking
+              page, trail page or another useful link.
+            </p>
+          </div>
+
+          <div>
+            <Field
+              label="Google Maps"
+              name="googleMapsUrl"
+              type="url"
+              placeholder="https://maps.app.goo.gl/..."
+            />
+
+            <p className="mt-2 text-xs leading-5 text-stone-400">
+              In Google Maps, choose Share → Copy link.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* LOCATION */}
+
       <div className="rounded-2xl border border-stone-200 bg-white p-6">
         <h2 className="text-lg font-semibold">
           Location
         </h2>
-
-        <p className="mt-1 text-sm text-stone-500">
-          Used to place the recommendation on the map.
-        </p>
 
         <div className="mt-6 grid gap-5 sm:grid-cols-2">
           <Field
@@ -546,14 +584,16 @@ export default function AddPlaceForm() {
         </div>
       </div>
 
+      {/* MAIN IMAGE */}
+
       <div className="rounded-2xl border border-stone-200 bg-white p-6">
         <h2 className="text-lg font-semibold">
           Main image
         </h2>
 
         <p className="mt-1 text-sm text-stone-500">
-          The main photo used on cards and at the top of
-          the place page.
+          This is the main photo shown on the place
+          page and recommendation cards.
         </p>
 
         {mainImagePreview ? (
@@ -581,7 +621,7 @@ export default function AddPlaceForm() {
           >
             {mainImagePreview
               ? "Replace image"
-              : "Choose image"}
+              : "Upload image"}
           </label>
 
           <input
@@ -591,12 +631,10 @@ export default function AddPlaceForm() {
             onChange={handleMainImageChange}
             className="sr-only"
           />
-
-          <p className="mt-3 text-xs text-stone-400">
-            Choose a photo from your computer or phone.
-          </p>
         </div>
       </div>
+
+      {/* GALLERY */}
 
       <div className="rounded-2xl border border-stone-200 bg-white p-6">
         <h2 className="text-lg font-semibold">
@@ -604,7 +642,7 @@ export default function AddPlaceForm() {
         </h2>
 
         <p className="mt-1 text-sm text-stone-500">
-          Add extra photos to the place gallery.
+          Add additional photos for the place page.
         </p>
 
         <div className="mt-6">
@@ -620,7 +658,7 @@ export default function AddPlaceForm() {
             type="file"
             accept="image/*"
             multiple
-            onChange={handleGalleryChange}
+            onChange={handleGalleryFilesChange}
             className="sr-only"
           />
 
@@ -640,21 +678,17 @@ export default function AddPlaceForm() {
                   <div className="aspect-[4/3]">
                     <img
                       src={preview}
-                      alt={`Gallery preview ${index + 1}`}
+                      alt={`Gallery preview ${
+                        index + 1
+                      }`}
                       className="h-full w-full object-cover"
                     />
-                  </div>
-
-                  <div className="absolute left-2 top-2 flex h-7 min-w-7 items-center justify-center rounded-full bg-white/90 px-2 text-xs font-medium text-stone-700 shadow-sm">
-                    {index + 1}
                   </div>
 
                   <button
                     type="button"
                     onClick={() =>
-                      removeNewGalleryImage(
-                        index
-                      )
+                      removeGalleryFile(index)
                     }
                     className="absolute right-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-stone-700 shadow-sm transition hover:bg-white"
                   >
@@ -666,6 +700,8 @@ export default function AddPlaceForm() {
           </div>
         )}
       </div>
+
+      {/* FEATURED */}
 
       <div className="rounded-2xl border border-stone-200 bg-white p-6">
         <label className="flex items-start gap-3">
@@ -681,8 +717,8 @@ export default function AddPlaceForm() {
             </p>
 
             <p className="mt-1 text-sm text-stone-500">
-              Show this place in the featured section on
-              the homepage.
+              Show this place in the featured section
+              on the homepage.
             </p>
           </div>
         </label>
@@ -711,7 +747,7 @@ export default function AddPlaceForm() {
           className="rounded-full bg-stone-800 px-6 py-3 text-sm font-medium text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {saving
-            ? "Uploading & creating..."
+            ? "Uploading & saving..."
             : "Add place"}
         </button>
       </div>
@@ -726,6 +762,7 @@ type FieldProps = {
   placeholder?: string;
   required?: boolean;
   step?: string;
+  defaultValue?: string | number;
 };
 
 function Field({
@@ -735,6 +772,7 @@ function Field({
   placeholder,
   required,
   step,
+  defaultValue,
 }: FieldProps) {
   return (
     <div>
@@ -752,7 +790,8 @@ function Field({
         placeholder={placeholder}
         required={required}
         step={step}
-        className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-stone-500"
+        defaultValue={defaultValue}
+        className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-stone-400 focus:border-stone-500"
       />
     </div>
   );

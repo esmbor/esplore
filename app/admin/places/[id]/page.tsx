@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { notFound } from "next/navigation";
 import Header from "../../../components/Header";
 import EditPlaceForm from "../../../components/EditPlaceForm";
 import { supabase } from "../../../lib/supabase";
@@ -40,6 +40,8 @@ export default async function EditPlacePage({
       visited,
       latitude,
       longitude,
+      externalUrl,
+      googleMapsUrl,
       featured
     `)
     .eq("id", id)
@@ -47,28 +49,11 @@ export default async function EditPlacePage({
 
   if (placeError || !place) {
     console.error(
-      "PLACE ERROR:",
-      JSON.stringify(placeError, null, 2)
+      "PLACE LOAD ERROR:",
+      placeError
     );
 
-    return (
-      <main className="min-h-screen bg-stone-50 text-stone-900">
-        <Header />
-
-        <section className="mx-auto max-w-3xl px-6 py-16">
-          <p className="text-sm text-stone-500">
-            Place not found.
-          </p>
-
-          <Link
-            href="/admin"
-            className="mt-6 inline-block text-sm font-medium text-stone-700"
-          >
-            ← Back to admin
-          </Link>
-        </section>
-      </main>
-    );
+    notFound();
   }
 
   const {
@@ -86,48 +71,37 @@ export default async function EditPlacePage({
 
   if (galleryError) {
     console.error(
-      "GALLERY ERROR DETAILS:",
-      JSON.stringify(
-        {
-          message: galleryError.message,
-          details: galleryError.details,
-          hint: galleryError.hint,
-          code: galleryError.code,
-        },
-        null,
-        2
-      )
+      "GALLERY LOAD ERROR:",
+      galleryError
     );
   }
 
-  const gallery = [...(galleryData ?? [])].sort(
+  const gallery = [
+    ...(galleryData ?? []),
+  ].sort(
     (a, b) =>
-      (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+      (a.sortOrder ?? 0) -
+      (b.sortOrder ?? 0)
   );
 
   return (
     <main className="min-h-screen bg-stone-50 text-stone-900">
       <Header />
 
-      <section className="mx-auto max-w-3xl px-6 py-16">
-        <Link
-          href="/admin"
-          className="text-sm text-stone-500 transition hover:text-stone-900"
-        >
-          ← Back to places
-        </Link>
+      <section className="mx-auto max-w-4xl px-6 py-16">
+        <div>
+          <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
+            Admin
+          </p>
 
-        <p className="mt-10 text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
-          Admin
-        </p>
+          <h1 className="mt-4 text-4xl font-semibold tracking-tight">
+            Edit place
+          </h1>
 
-        <h1 className="mt-4 text-4xl font-semibold tracking-tight">
-          Edit place
-        </h1>
-
-        <p className="mt-4 text-stone-600">
-          Update the details for {place.name}.
-        </p>
+          <p className="mt-3 text-stone-500">
+            {place.name}
+          </p>
+        </div>
 
         <div className="mt-10">
           <EditPlaceForm

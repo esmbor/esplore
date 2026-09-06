@@ -36,6 +36,8 @@ type Place = {
   visited: string | null;
   latitude: number | null;
   longitude: number | null;
+  externalUrl: string | null;
+  googleMapsUrl: string | null;
   featured: boolean;
   gallery: GalleryImage[];
 };
@@ -50,9 +52,13 @@ export default function EditPlaceForm({
   const router = useRouter();
 
   const [saving, setSaving] = useState(false);
-  const [reordering, setReordering] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [reordering, setReordering] =
+    useState(false);
+  const [deleting, setDeleting] =
+    useState(false);
+
+  const [errorMessage, setErrorMessage] =
+    useState("");
 
   const [mainImageFile, setMainImageFile] =
     useState<File | null>(null);
@@ -96,6 +102,24 @@ export default function EditPlaceForm({
       .replace(/[^a-z0-9-]/g, "-");
   }
 
+  function getStoragePathFromPublicUrl(
+    imageUrl: string
+  ) {
+    const publicPrefix =
+      "/storage/v1/object/public/place-images/";
+
+    if (!imageUrl.includes(publicPrefix)) {
+      return null;
+    }
+
+    const path =
+      imageUrl.split(publicPrefix)[1];
+
+    if (!path) return null;
+
+    return decodeURIComponent(path);
+  }
+
   function handleMainImageChange(
     event: ChangeEvent<HTMLInputElement>
   ) {
@@ -111,7 +135,9 @@ export default function EditPlaceForm({
     }
 
     setMainImageFile(file);
-    setMainImagePreview(URL.createObjectURL(file));
+    setMainImagePreview(
+      URL.createObjectURL(file)
+    );
   }
 
   function handleGalleryFilesChange(
@@ -174,7 +200,6 @@ export default function EditPlaceForm({
     return {
       publicUrl: data.publicUrl,
       fileName,
-      filePath,
     };
   }
 
@@ -182,7 +207,8 @@ export default function EditPlaceForm({
     slug: string,
     keepFileName: string
   ) {
-    const safeSlug = createSafeSlug(slug);
+    const safeSlug =
+      createSafeSlug(slug);
 
     const {
       data: files,
@@ -195,22 +221,16 @@ export default function EditPlaceForm({
       });
 
     if (listError) {
-      console.error(
-        "MAIN CLEANUP LIST ERROR:",
-        listError
-      );
-
       throw listError;
     }
 
     const oldMainPaths =
       (files ?? [])
-        .filter((file) => {
-          return (
-            file.name.includes("main-") &&
+        .filter(
+          (file) =>
+            file.name.startsWith("main-") &&
             file.name !== keepFileName
-          );
-        })
+        )
         .map(
           (file) =>
             `${safeSlug}/${file.name}`
@@ -220,19 +240,12 @@ export default function EditPlaceForm({
       return;
     }
 
-    const {
-      data: deletedFiles,
-      error: deleteError,
-    } = await supabase.storage
-      .from("place-images")
-      .remove(oldMainPaths);
+    const { error: deleteError } =
+      await supabase.storage
+        .from("place-images")
+        .remove(oldMainPaths);
 
     if (deleteError) {
-      console.error(
-        "MAIN CLEANUP DELETE ERROR:",
-        deleteError
-      );
-
       throw deleteError;
     }
   }
@@ -243,7 +256,8 @@ export default function EditPlaceForm({
   ) {
     if (files.length === 0) return;
 
-    const safeSlug = createSafeSlug(slug);
+    const safeSlug =
+      createSafeSlug(slug);
 
     const existingMaxSortOrder =
       galleryImages.length > 0
@@ -327,31 +341,22 @@ export default function EditPlaceForm({
         throw rowError;
       }
 
-      const publicPrefix =
-        "/storage/v1/object/public/place-images/";
+      const storagePath =
+        getStoragePathFromPublicUrl(
+          image.imageUrl
+        );
 
-      if (
-        image.imageUrl.includes(publicPrefix)
-      ) {
-        const storagePath =
-          decodeURIComponent(
-            image.imageUrl.split(
-              publicPrefix
-            )[1]
+      if (storagePath) {
+        const { error: storageError } =
+          await supabase.storage
+            .from("place-images")
+            .remove([storagePath]);
+
+        if (storageError) {
+          console.error(
+            "STORAGE DELETE ERROR:",
+            storageError
           );
-
-        if (storagePath) {
-          const { error: storageError } =
-            await supabase.storage
-              .from("place-images")
-              .remove([storagePath]);
-
-          if (storageError) {
-            console.error(
-              "STORAGE DELETE ERROR:",
-              storageError
-            );
-          }
         }
       }
 
@@ -379,14 +384,16 @@ export default function EditPlaceForm({
     imageId: string
   ) {
     setDraggedImageId(imageId);
-    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.effectAllowed =
+      "move";
   }
 
   function handleDragOver(
     event: DragEvent<HTMLDivElement>
   ) {
     event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
+    event.dataTransfer.dropEffect =
+      "move";
   }
 
   async function handleDrop(
@@ -403,7 +410,9 @@ export default function EditPlaceForm({
       return;
     }
 
-    const currentImages = [...galleryImages];
+    const currentImages = [
+      ...galleryImages,
+    ];
 
     const draggedIndex =
       currentImages.findIndex(
@@ -452,12 +461,14 @@ export default function EditPlaceForm({
 
     try {
       for (const image of reorderedImages) {
-        const { error } = await supabase
-          .from("placeImages")
-          .update({
-            sortOrder: image.sortOrder,
-          })
-          .eq("id", image.id);
+        const { error } =
+          await supabase
+            .from("placeImages")
+            .update({
+              sortOrder:
+                image.sortOrder,
+            })
+            .eq("id", image.id);
 
         if (error) {
           throw error;
@@ -661,6 +672,14 @@ export default function EditPlaceForm({
           formData.get("longitude")
         ),
 
+        externalUrl: String(
+          formData.get("externalUrl") ?? ""
+        ).trim(),
+
+        googleMapsUrl: String(
+          formData.get("googleMapsUrl") ?? ""
+        ).trim(),
+
         featured:
           formData.get("featured") ===
           "on",
@@ -697,13 +716,7 @@ export default function EditPlaceForm({
       router.push("/admin");
       router.refresh();
     } catch (error: any) {
-      console.error("SAVE ERROR:", {
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code,
-        error,
-      });
+      console.error("SAVE ERROR:", error);
 
       setErrorMessage(
         error?.message ??
@@ -720,6 +733,8 @@ export default function EditPlaceForm({
       onSubmit={handleSubmit}
       className="space-y-8"
     >
+      {/* BASIC INFORMATION */}
+
       <div className="rounded-2xl border border-stone-200 bg-white p-6">
         <h2 className="text-lg font-semibold">
           Basic information
@@ -814,6 +829,8 @@ export default function EditPlaceForm({
         </div>
       </div>
 
+      {/* DESCRIPTION */}
+
       <div className="rounded-2xl border border-stone-200 bg-white p-6">
         <h2 className="text-lg font-semibold">
           Description
@@ -853,6 +870,8 @@ export default function EditPlaceForm({
           />
         </div>
       </div>
+
+      {/* QUICK FACTS */}
 
       <div className="rounded-2xl border border-stone-200 bg-white p-6">
         <h2 className="text-lg font-semibold">
@@ -908,6 +927,51 @@ export default function EditPlaceForm({
         </div>
       </div>
 
+      {/* LINKS */}
+
+      <div className="rounded-2xl border border-stone-200 bg-white p-6">
+        <h2 className="text-lg font-semibold">
+          Links
+        </h2>
+
+        <p className="mt-1 text-sm text-stone-500">
+          Add useful external links for this place.
+        </p>
+
+        <div className="mt-6 space-y-5">
+          <div>
+            <Field
+              label="Website"
+              name="externalUrl"
+              type="url"
+              placeholder="https://example.com"
+              defaultValue={place.externalUrl ?? ""}
+            />
+
+            <p className="mt-2 text-xs leading-5 text-stone-400">
+              This can also be an Instagram page, booking
+              page, trail page or another useful link.
+            </p>
+          </div>
+
+          <div>
+            <Field
+              label="Google Maps"
+              name="googleMapsUrl"
+              type="url"
+              placeholder="https://maps.app.goo.gl/..."
+              defaultValue={place.googleMapsUrl ?? ""}
+            />
+
+            <p className="mt-2 text-xs leading-5 text-stone-400">
+              In Google Maps, choose Share → Copy link.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* LOCATION */}
+
       <div className="rounded-2xl border border-stone-200 bg-white p-6">
         <h2 className="text-lg font-semibold">
           Location
@@ -937,6 +1001,8 @@ export default function EditPlaceForm({
           />
         </div>
       </div>
+
+      {/* MAIN IMAGE */}
 
       <div className="rounded-2xl border border-stone-200 bg-white p-6">
         <h2 className="text-lg font-semibold">
@@ -985,6 +1051,8 @@ export default function EditPlaceForm({
           />
         </div>
       </div>
+
+      {/* GALLERY */}
 
       <div className="rounded-2xl border border-stone-200 bg-white p-6">
         <div className="flex items-start justify-between gap-6">
@@ -1075,32 +1143,44 @@ export default function EditPlaceForm({
             type="file"
             accept="image/*"
             multiple
-            onChange={handleGalleryFilesChange}
+            onChange={
+              handleGalleryFilesChange
+            }
             className="sr-only"
           />
         </div>
 
         {newGalleryPreviews.length > 0 && (
-          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
-            {newGalleryPreviews.map(
-              (preview, index) => (
-                <div
-                  key={preview}
-                  className="overflow-hidden rounded-xl border border-stone-200 bg-stone-100"
-                >
-                  <div className="aspect-[4/3]">
-                    <img
-                      src={preview}
-                      alt={`New gallery photo ${index + 1}`}
-                      className="h-full w-full object-cover"
-                    />
+          <div className="mt-6">
+            <p className="text-xs font-medium uppercase tracking-[0.16em] text-stone-400">
+              New photos
+            </p>
+
+            <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {newGalleryPreviews.map(
+                (preview, index) => (
+                  <div
+                    key={preview}
+                    className="overflow-hidden rounded-xl border border-stone-200 bg-stone-100"
+                  >
+                    <div className="aspect-[4/3]">
+                      <img
+                        src={preview}
+                        alt={`New gallery photo ${
+                          index + 1
+                        }`}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
                   </div>
-                </div>
-              )
-            )}
+                )
+              )}
+            </div>
           </div>
         )}
       </div>
+
+      {/* FEATURED */}
 
       <div className="rounded-2xl border border-stone-200 bg-white p-6">
         <label className="flex items-start gap-3">
@@ -1117,8 +1197,8 @@ export default function EditPlaceForm({
             </p>
 
             <p className="mt-1 text-sm text-stone-500">
-              Show this place in the featured section on
-              the homepage.
+              Show this place in the featured section
+              on the homepage.
             </p>
           </div>
         </label>
@@ -1155,6 +1235,8 @@ export default function EditPlaceForm({
             : "Save changes"}
         </button>
       </div>
+
+      {/* DANGER ZONE */}
 
       <div className="border-t border-stone-200 pt-8">
         <div className="rounded-2xl border border-red-200 bg-red-50/50 p-6">
@@ -1228,7 +1310,7 @@ function Field({
         required={required}
         step={step}
         defaultValue={defaultValue}
-        className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-stone-500"
+        className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-stone-400 focus:border-stone-500"
       />
     </div>
   );

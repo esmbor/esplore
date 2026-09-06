@@ -14,6 +14,7 @@ type MapPlace = {
   category: string;
   latitude: number;
   longitude: number;
+  googleMapsUrl: string | null;
 };
 
 type MapClientProps = {
@@ -326,13 +327,39 @@ function createPlaceIcon(
 }
 
 function createPopup(place: MapPlace) {
+  const fallbackGoogleMapsUrl =
+    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      `${place.name}, ${place.city}, ${place.country}`
+    )}`;
+
+  const googleMapsUrl =
+    place.googleMapsUrl?.trim() ||
+    fallbackGoogleMapsUrl;
+
   return `
-    <div style="min-width: 180px;">
+    <div style="min-width: 230px;">
       <strong>${place.name}</strong><br />
       <span>${place.city}, ${place.country}</span><br /><br />
-      <a href="/places/${place.slug}">
-        View place →
-      </a>
+
+      <div style="
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+      ">
+        <a href="/places/${place.slug}">
+          View place →
+        </a>
+
+        <a
+          href="${googleMapsUrl}"
+          target="_blank"
+          rel="noopener noreferrer"
+          style="text-align: right;"
+        >
+          Google Maps →
+        </a>
+      </div>
     </div>
   `;
 }
