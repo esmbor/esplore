@@ -199,7 +199,7 @@ export default async function PlacePage({ params }: PlacePageProps) {
 
           <section>
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
-              What to expect
+              What to do
             </p>
 
             <p className="mt-4 leading-7 text-stone-700">

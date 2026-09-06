@@ -478,7 +478,7 @@ export default function AddPlaceForm() {
           />
 
           <TextArea
-            label="What to expect"
+            label="What to do"
             name="whatToOrder"
           />
 

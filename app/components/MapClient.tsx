@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import {
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import "leaflet/dist/leaflet.css";
 
 import { categories } from "../data/categories";
@@ -27,19 +30,40 @@ const categoryColors: Record<string, string> = {
   Restaurants: "#B47762",
   Bars: "#847184",
   Hikes: "#7E8E72",
-  Highlights: "#7C8EA3"
+  Highlights: "#7C8EA3",
 };
 
-export default function MapClient({ places }: MapClientProps) {
-  const mapRef = useRef<HTMLDivElement | null>(null);
+const INITIAL_CENTER: [number, number] = [
+  58, 8,
+];
+
+const INITIAL_ZOOM = 3.7;
+
+export default function MapClient({
+  places,
+}: MapClientProps) {
+  const router = useRouter();
+
+  const mapRef =
+    useRef<HTMLDivElement | null>(null);
+
   const leafletMapRef = useRef<any>(null);
   const markerLayerRef = useRef<any>(null);
 
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [mapReady, setMapReady] = useState(false);
+  const ignorePlaceSlugRef =
+    useRef(false);
+
+  const [
+    selectedCategory,
+    setSelectedCategory,
+  ] = useState("All");
+
+  const [mapReady, setMapReady] =
+    useState(false);
 
   const searchParams = useSearchParams();
-  const placeSlug = searchParams.get("place");
+  const placeSlug =
+    searchParams.get("place");
 
   useEffect(() => {
     let cancelled = false;
@@ -49,22 +73,47 @@ export default function MapClient({ places }: MapClientProps) {
 
       const L = await import("leaflet");
 
-      if (cancelled || !mapRef.current) return;
-      if (leafletMapRef.current) return;
+      if (
+        cancelled ||
+        !mapRef.current
+      ) {
+        return;
+      }
 
-      const map = L.map(mapRef.current).setView([52.5, 15], 4);
+      if (leafletMapRef.current) {
+        return;
+      }
+
+      const map = L.map(mapRef.current, {
+        zoomSnap: 0.25,
+        zoomDelta: 0.25,
+      }).setView(
+        INITIAL_CENTER,
+        INITIAL_ZOOM
+      );
+
+      map.doubleClickZoom.disable();
+
+      map.on("dblclick", (event: any) => {
+        map.setView(
+          event.latlng,
+          Math.min(map.getZoom() + 1, 19)
+        );
+      });
 
       leafletMapRef.current = map;
 
       L.tileLayer(
         "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
         {
-          attribution: "&copy; OpenStreetMap contributors",
+          attribution:
+            "&copy; OpenStreetMap contributors",
           maxZoom: 19,
         }
       ).addTo(map);
 
-      markerLayerRef.current = L.layerGroup().addTo(map);
+      markerLayerRef.current =
+        L.layerGroup().addTo(map);
 
       requestAnimationFrame(() => {
         map.invalidateSize();
@@ -109,8 +158,11 @@ export default function MapClient({ places }: MapClientProps) {
         return;
       }
 
-      const map = leafletMapRef.current;
-      const markerLayer = markerLayerRef.current;
+      const map =
+        leafletMapRef.current;
+
+      const markerLayer =
+        markerLayerRef.current;
 
       markerLayer.clearLayers();
 
@@ -119,127 +171,204 @@ export default function MapClient({ places }: MapClientProps) {
           ? places
           : places.filter(
               (place) =>
-                place.categories?.includes(selectedCategory) ||
-                place.category === selectedCategory
+                place.categories?.includes(
+                  selectedCategory
+                ) ||
+                place.category ===
+                  selectedCategory
             );
 
-      const validPlaces = filteredPlaces.filter(
-        (place) =>
-          place.latitude != null &&
-          place.longitude != null &&
-          place.latitude !== 0 &&
-          place.longitude !== 0
-      );
+      const validPlaces =
+        filteredPlaces.filter(
+          (place) =>
+            place.latitude != null &&
+            place.longitude != null &&
+            place.latitude !== 0 &&
+            place.longitude !== 0
+        );
 
-      const zoom = map.getZoom();
+      /*
+       * When coming from a place page,
+       * show that specific place directly.
+       */
+      if (
+        placeSlug &&
+        !ignorePlaceSlugRef.current
+      ) {
+        validPlaces.forEach(
+          (place) => {
+            const marker = L.marker(
+              [
+                place.latitude,
+                place.longitude,
+              ],
+              {
+                icon: createPlaceIcon(
+                  L,
+                  place.category
+                ),
+              }
+            ).bindPopup(
+              createPopup(place)
+            );
 
-      if (zoom < 10 && !placeSlug) {
-        const cityGroups = new Map<string, MapPlace[]>();
+            markerLayer.addLayer(
+              marker
+            );
 
-        validPlaces.forEach((place) => {
-          const key = `${place.city}-${place.country}`;
-          const current = cityGroups.get(key) ?? [];
+            if (
+              place.slug ===
+              placeSlug
+            ) {
+              map.setView(
+                [
+                  place.latitude,
+                  place.longitude,
+                ],
+                15
+              );
 
-          cityGroups.set(key, [...current, place]);
-        });
+              marker.openPopup();
+            }
+          }
+        );
 
-        cityGroups.forEach((cityPlaces) => {
-          if (cityPlaces.length === 1) {
-            const place = cityPlaces[0];
+        return;
+      }
+
+      /*
+       * Cluster places by actual visual
+       * distance on the map instead of city.
+       */
+      const clusters =
+        createGeographicClusters(
+          map,
+          validPlaces,
+          20
+        );
+
+      clusters.forEach(
+        (cluster) => {
+          if (
+            cluster.length === 1
+          ) {
+            const place =
+              cluster[0];
 
             const marker = L.marker(
-              [place.latitude, place.longitude],
+              [
+                place.latitude,
+                place.longitude,
+              ],
               {
-                icon: createPlaceIcon(L, place.category),
+                icon: createPlaceIcon(
+                  L,
+                  place.category
+                ),
               }
-            ).bindPopup(createPopup(place));
+            ).bindPopup(
+              createPopup(place)
+            );
 
-            markerLayer.addLayer(marker);
+            markerLayer.addLayer(
+              marker
+            );
 
             return;
           }
 
           const latitude =
-            cityPlaces.reduce(
-              (total, place) => total + place.latitude,
+            cluster.reduce(
+              (total, place) =>
+                total +
+                place.latitude,
               0
-            ) / cityPlaces.length;
+            ) / cluster.length;
 
           const longitude =
-            cityPlaces.reduce(
-              (total, place) => total + place.longitude,
+            cluster.reduce(
+              (total, place) =>
+                total +
+                place.longitude,
               0
-            ) / cityPlaces.length;
+            ) / cluster.length;
 
-          const clusterIcon = L.divIcon({
-            className: "",
-            html: `
-              <div style="
-                width: 34px;
-                height: 34px;
-                border-radius: 999px;
-                background: #44403c;
-                border: 3px solid rgba(250, 250, 249, 0.95);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #fafaf9;
-                font-size: 12px;
-                font-weight: 600;
-                box-shadow: 0 2px 8px rgba(41, 37, 36, 0.18);
-              ">
-                ${cityPlaces.length}
-              </div>
-            `,
-            iconSize: [34, 34],
-            iconAnchor: [17, 17],
-          });
+          const clusterIcon =
+            L.divIcon({
+              className: "",
+              html: `
+                <div style="
+                  width: 34px;
+                  height: 34px;
+                  border-radius: 999px;
+                  background: #44403c;
+                  border: 3px solid rgba(250, 250, 249, 0.95);
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  color: #fafaf9;
+                  font-size: 12px;
+                  font-weight: 600;
+                  box-shadow: 0 2px 8px rgba(41, 37, 36, 0.18);
+                ">
+                  ${cluster.length}
+                </div>
+              `,
+              iconSize: [34, 34],
+              iconAnchor: [17, 17],
+            });
 
           const marker = L.marker(
-            [latitude, longitude],
+            [
+              latitude,
+              longitude,
+            ],
             {
               icon: clusterIcon,
             }
           );
 
-          marker.on("click", () => {
-            map.setView([latitude, longitude], 13);
-          });
-
-          markerLayer.addLayer(marker);
-        });
-      } else {
-        validPlaces.forEach((place) => {
-          const marker = L.marker(
-            [place.latitude, place.longitude],
-            {
-              icon: createPlaceIcon(L, place.category),
+          marker.on(
+            "click",
+            () => {
+              map.setView(
+                [
+                  latitude,
+                  longitude,
+                ],
+                Math.min(
+                  map.getZoom() +
+                    3,
+                  14
+                )
+              );
             }
-          ).bindPopup(createPopup(place));
+          );
 
-          markerLayer.addLayer(marker);
-
-          if (place.slug === placeSlug) {
-            map.setView(
-              [place.latitude, place.longitude],
-              15
-            );
-
-            marker.openPopup();
-          }
-        });
-      }
+          markerLayer.addLayer(
+            marker
+          );
+        }
+      );
     }
 
     renderMarkers();
 
-    const map = leafletMapRef.current;
+    const map =
+      leafletMapRef.current;
 
-    map.on("zoomend", renderMarkers);
+    map.on(
+      "zoomend",
+      renderMarkers
+    );
 
     return () => {
       cancelled = true;
-      map.off("zoomend", renderMarkers);
+
+      map.off(
+        "zoomend",
+        renderMarkers
+      );
     };
   }, [
     selectedCategory,
@@ -247,6 +376,34 @@ export default function MapClient({ places }: MapClientProps) {
     placeSlug,
     places,
   ]);
+
+  function resetMapView() {
+    if (!leafletMapRef.current) {
+      return;
+    }
+
+    /*
+     * If we arrived through ?place=...
+     * remove that first, otherwise the map
+     * would immediately zoom back to it.
+     */
+    ignorePlaceSlugRef.current =
+      true;
+
+    if (placeSlug) {
+      router.replace(
+        "/map",
+        {
+          scroll: false,
+        }
+      );
+    }
+
+    leafletMapRef.current.setView(
+      INITIAL_CENTER,
+      INITIAL_ZOOM
+    );
+  }
 
   return (
     <main className="min-h-screen bg-stone-50 text-stone-900">
@@ -260,49 +417,142 @@ export default function MapClient({ places }: MapClientProps) {
         </h1>
 
         <p className="mt-4 max-w-2xl text-lg leading-8 text-stone-600">
-          Explore all my favorite places on the map.
+          Explore all my favorite
+          places on the map.
         </p>
 
         <div className="mt-8 flex flex-wrap gap-3">
-          {categories.map((category) => {
-            const isSelected =
-              selectedCategory === category;
+          {categories.map(
+            (category) => {
+              const isSelected =
+                selectedCategory ===
+                category;
 
-            return (
-              <button
-                key={category}
-                onClick={() =>
-                  setSelectedCategory(category)
-                }
-                className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition ${
-                  isSelected
-                    ? "border-stone-700 bg-stone-700 text-stone-50"
-                    : "border-stone-300 bg-white text-stone-700 hover:bg-stone-100"
-                }`}
-              >
-                {category !== "All" && (
-                  <span
-                    className="h-2 w-2 rounded-full"
-                    style={{
-                      backgroundColor:
-                        categoryColors[category] ?? "#a8a29e",
-                    }}
-                  />
-                )}
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() =>
+                    setSelectedCategory(
+                      category
+                    )
+                  }
+                  className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition ${
+                    isSelected
+                      ? "border-stone-700 bg-stone-700 text-stone-50"
+                      : "border-stone-300 bg-white text-stone-700 hover:bg-stone-100"
+                  }`}
+                >
+                  {category !==
+                    "All" && (
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{
+                        backgroundColor:
+                          categoryColors[
+                            category
+                          ] ??
+                          "#a8a29e",
+                      }}
+                    />
+                  )}
 
-                {category}
-              </button>
-            );
-          })}
+                  {category}
+                </button>
+              );
+            }
+          )}
         </div>
 
-        <div
-          ref={mapRef}
-          className="relative mt-10 h-[600px] w-full overflow-hidden rounded-2xl border border-stone-200 bg-stone-100"
-        />
+        <div className="relative mt-10">
+          <div
+            ref={mapRef}
+            className="h-[600px] w-full overflow-hidden rounded-2xl border border-stone-200 bg-stone-100"
+          />
+
+          <button
+            type="button"
+            onClick={resetMapView}
+            className="absolute right-4 top-4 z-[500] rounded-full border border-stone-200 bg-white/95 px-4 py-2 text-sm font-medium text-stone-600 shadow-sm transition hover:bg-white hover:text-stone-900"
+          >
+            Reset view
+          </button>
+        </div>
       </section>
     </main>
   );
+}
+
+function createGeographicClusters(
+  map: any,
+  places: MapPlace[],
+  maxPixelDistance: number
+) {
+  const clusters: MapPlace[][] =
+    [];
+
+  places.forEach((place) => {
+    const placePoint =
+      map.latLngToContainerPoint([
+        place.latitude,
+        place.longitude,
+      ]);
+
+    let matchingCluster:
+      | MapPlace[]
+      | undefined;
+
+    for (
+      const cluster of clusters
+    ) {
+      const centerLatitude =
+        cluster.reduce(
+          (total, item) =>
+            total +
+            item.latitude,
+          0
+        ) / cluster.length;
+
+      const centerLongitude =
+        cluster.reduce(
+          (total, item) =>
+            total +
+            item.longitude,
+          0
+        ) / cluster.length;
+
+      const clusterPoint =
+        map.latLngToContainerPoint([
+          centerLatitude,
+          centerLongitude,
+        ]);
+
+      const distance =
+        placePoint.distanceTo(
+          clusterPoint
+        );
+
+      if (
+        distance <=
+        maxPixelDistance
+      ) {
+        matchingCluster =
+          cluster;
+
+        break;
+      }
+    }
+
+    if (matchingCluster) {
+      matchingCluster.push(
+        place
+      );
+    } else {
+      clusters.push([place]);
+    }
+  });
+
+  return clusters;
 }
 
 function createPlaceIcon(
@@ -310,7 +560,8 @@ function createPlaceIcon(
   category: string
 ) {
   const color =
-    categoryColors[category] ?? "#78716c";
+    categoryColors[category] ??
+    "#78716c";
 
   return L.divIcon({
     className: "",
@@ -330,7 +581,9 @@ function createPlaceIcon(
   });
 }
 
-function createPopup(place: MapPlace) {
+function createPopup(
+  place: MapPlace
+) {
   const fallbackGoogleMapsUrl =
     `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
       `${place.name}, ${place.city}, ${place.country}`
