@@ -26,6 +26,7 @@ const categoryColors: Record<string, string> = {
   Restaurants: "#B47762",
   Bars: "#847184",
   Hikes: "#7E8E72",
+  Highlights: "#7C8EA3"
 };
 
 export default function MapClient({ places }: MapClientProps) {
