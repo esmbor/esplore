@@ -13,6 +13,7 @@ export default async function ExplorePage() {
       city,
       country,
       category,
+      categories,
       rating,
       description,
       image

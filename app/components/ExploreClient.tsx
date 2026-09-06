@@ -13,6 +13,7 @@ type Place = {
   city: string;
   country: string;
   category: string;
+  categories: string[] | null;
   rating: number;
   description: string;
   image: string | null;
@@ -49,6 +50,7 @@ export default function ExploreClient({ places }: ExploreClientProps) {
   const filteredPlaces = places.filter((place) => {
     const matchesCategory =
       selectedCategory === "All" ||
+      place.categories?.includes(selectedCategory) ||
       place.category === selectedCategory;
 
     const matchesCountry =
@@ -157,28 +159,38 @@ export default function ExploreClient({ places }: ExploreClientProps) {
               </div>
 
               <div className="p-6">
-                <div className="mb-4 flex items-center justify-between gap-4">
-                  <span className="rounded-full bg-stone-100 px-3 py-1 text-sm text-stone-600">
-                    {place.category}
-                  </span>
-
-                  <span className="text-sm tracking-wide text-stone-700">
-                    {"*".repeat(place.rating)}
-                  </span>
+                <div className="mb-4 flex items-start justify-between gap-4">
+                  <div className="flex flex-wrap gap-2">
+                    {(place.categories?.length
+                      ? place.categories
+                      : [place.category]
+                    ).map((category) => (
+                      <span
+                        key={category}
+                        className="rounded-full bg-stone-100 px-3 py-1 text-sm text-stone-600"
+                      >
+                        {category}
+                      </span>
+                    ))}
                   </div>
 
-                  <h2 className="text-2xl font-semibold tracking-tight">
-                    {place.name}
-                  </h2>
-
-                  <p className="mt-1 text-sm text-stone-500">
-                    {place.city}, {place.country}
-                  </p>
-
-                  <p className="mt-4 leading-7 text-stone-600">
-                    {place.description}
-                  </p>
+                  <span className="shrink-0 text-sm tracking-wide text-stone-700">
+                    {"*".repeat(place.rating)}
+                  </span>
                 </div>
+
+                <h2 className="text-2xl font-semibold tracking-tight">
+                  {place.name}
+                </h2>
+
+                <p className="mt-1 text-sm text-stone-500">
+                  {place.city}, {place.country}
+                </p>
+
+                <p className="mt-4 leading-7 text-stone-600">
+                  {place.description}
+                </p>
+              </div>
             </article>
           </Link>
           ))}

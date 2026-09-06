@@ -14,6 +14,7 @@ export default async function MapPage() {
       city,
       country,
       category,
+      categories,
       latitude,
       longitude,
       googleMapsUrl

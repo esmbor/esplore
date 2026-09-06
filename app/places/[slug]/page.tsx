@@ -22,6 +22,7 @@ export default async function PlacePage({ params }: PlacePageProps) {
       city,
       country,
       category,
+      categories,
       rating,
       description,
       image,
@@ -80,9 +81,19 @@ export default async function PlacePage({ params }: PlacePageProps) {
 
         <div className="mt-12 grid gap-8 lg:grid-cols-[1fr_240px] lg:items-start">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
-              {place.category}
-            </p>
+            <div className="flex flex-wrap gap-2">
+              {(place.categories?.length
+                ? place.categories
+                : [place.category]
+              ).map((category: string) => (
+                <span
+                  key={category}
+                  className="rounded-full bg-stone-100 px-3 py-1 text-sm font-medium text-stone-600"
+                >
+                  {category}
+                </span>
+              ))}
+            </div>
 
             <h1 className="mt-4 text-5xl font-semibold tracking-tight sm:text-6xl">
               {place.name}

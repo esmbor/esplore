@@ -12,6 +12,7 @@ type MapPlace = {
   city: string;
   country: string;
   category: string;
+  categories: string[] | null;
   latitude: number;
   longitude: number;
   googleMapsUrl: string | null;
@@ -117,7 +118,9 @@ export default function MapClient({ places }: MapClientProps) {
         selectedCategory === "All"
           ? places
           : places.filter(
-              (place) => place.category === selectedCategory
+              (place) =>
+                place.categories?.includes(selectedCategory) ||
+                place.category === selectedCategory
             );
 
       const validPlaces = filteredPlaces.filter(

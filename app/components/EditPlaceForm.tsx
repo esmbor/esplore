@@ -24,6 +24,7 @@ type Place = {
   city: string;
   country: string;
   category: string;
+  categories: string[] | null;
   rating: number;
   description: string | null;
   image: string | null;
@@ -72,6 +73,15 @@ export default function EditPlaceForm({
   const [newGalleryFiles, setNewGalleryFiles] =
     useState<File[]>([]);
 
+  const [selectedCategories, setSelectedCategories] =
+    useState<string[]>(
+      place.categories?.length
+        ? place.categories
+        : place.category
+          ? [place.category]
+          : []
+    );
+
   const [
     newGalleryPreviews,
     setNewGalleryPreviews,
@@ -100,6 +110,14 @@ export default function EditPlaceForm({
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, "-");
+  }
+
+  function toggleCategory(category: string) {
+    setSelectedCategories((current) =>
+      current.includes(category)
+        ? current.filter((item) => item !== category)
+        : [...current, category]
+    );
   }
 
   function getStoragePathFromPublicUrl(
@@ -581,6 +599,12 @@ export default function EditPlaceForm({
         event.currentTarget
       );
 
+      if (selectedCategories.length === 0) {
+        throw new Error(
+          "Please select at least one category."
+        );
+      }
+
       const name = String(
         formData.get("name") ?? ""
       );
@@ -622,9 +646,8 @@ export default function EditPlaceForm({
           formData.get("country") ?? ""
         ),
 
-        category: String(
-          formData.get("category") ?? ""
-        ),
+        category: selectedCategories[0],
+        categories: selectedCategories,
 
         rating: Number(
           formData.get("rating")
@@ -770,34 +793,38 @@ export default function EditPlaceForm({
           />
 
           <div>
-            <label
-              htmlFor="category"
-              className="text-sm font-medium text-stone-700"
-            >
-              Category
-            </label>
+            <p className="text-sm font-medium text-stone-700">
+              Categories
+            </p>
 
-            <select
-              id="category"
-              name="category"
-              required
-              defaultValue={place.category}
-              className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-stone-500"
-            >
+            <p className="mt-1 text-xs text-stone-500">
+              Select one or more categories. The first selected
+              category will be used as the primary category.
+            </p>
+
+            <div className="mt-3 flex flex-wrap gap-2">
               {categories
-                .filter(
-                  (category) =>
-                    category !== "All"
-                )
-                .map((category) => (
-                  <option
-                    key={category}
-                    value={category}
-                  >
-                    {category}
-                  </option>
-                ))}
-            </select>
+                .filter((category) => category !== "All")
+                .map((category) => {
+                  const selected =
+                    selectedCategories.includes(category);
+
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => toggleCategory(category)}
+                      className={`rounded-full border px-4 py-2 text-sm transition ${
+                        selected
+                          ? "border-stone-800 bg-stone-800 text-white"
+                          : "border-stone-300 bg-white text-stone-600 hover:bg-stone-50"
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  );
+                })}
+            </div>
           </div>
 
           <div>
