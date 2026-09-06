@@ -28,6 +28,7 @@ export default async function EditPlacePage({
       city,
       country,
       category,
+      categories,
       rating,
       description,
       image,
