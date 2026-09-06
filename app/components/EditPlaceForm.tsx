@@ -881,7 +881,7 @@ export default function EditPlaceForm({
           />
 
           <TextArea
-            label="What to order"
+            label="What to expect"
             name="whatToOrder"
             defaultValue={
               place.whatToOrder ?? ""
