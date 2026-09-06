@@ -32,7 +32,7 @@ export default function AboutPage() {
 
             <p className="mt-5 leading-7 text-stone-600">
               Everything here is based on places I’ve actually visited and
-              would recommend to someone else — whether it is worth planning
+              would recommend to someone else, whether it is worth planning
               around, or simply worth remembering when you happen to be nearby.
             </p>
           </div>
