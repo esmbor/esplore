@@ -10,6 +10,7 @@ import {
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 import { categories } from "../data/categories";
+import { compressImage } from "../lib/compressImage";
 
 type GalleryImage = {
   id: string;
@@ -184,16 +185,18 @@ export default function EditPlaceForm({
     file: File,
     slug: string
   ) {
-    const safeSlug = createSafeSlug(slug);
+    const compressedFile =
+      await compressImage(file);
 
-    const extension =
-      file.name
-        .split(".")
-        .pop()
-        ?.toLowerCase() ?? "jpg";
+    console.log(
+      `Main image: ${(file.size / 1024 / 1024).toFixed(2)} MB → ${(compressedFile.size / 1024).toFixed(0)} KB`
+    );
+
+    const safeSlug =
+      createSafeSlug(slug);
 
     const fileName =
-      `main-${Date.now()}.${extension}`;
+      `main-${Date.now()}.webp`;
 
     const filePath =
       `${safeSlug}/${fileName}`;
@@ -201,19 +204,25 @@ export default function EditPlaceForm({
     const { error: uploadError } =
       await supabase.storage
         .from("place-images")
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: false,
-          contentType: file.type,
-        });
+        .upload(
+          filePath,
+          compressedFile,
+          {
+            cacheControl: "3600",
+            upsert: false,
+            contentType:
+              compressedFile.type,
+          }
+        );
 
     if (uploadError) {
       throw uploadError;
     }
 
-    const { data } = supabase.storage
-      .from("place-images")
-      .getPublicUrl(filePath);
+    const { data } =
+      supabase.storage
+        .from("place-images")
+        .getPublicUrl(filePath);
 
     return {
       publicUrl: data.publicUrl,
@@ -281,7 +290,8 @@ export default function EditPlaceForm({
       galleryImages.length > 0
         ? Math.max(
             ...galleryImages.map(
-              (image) => image.sortOrder
+              (image) =>
+                image.sortOrder
             )
           )
         : 0;
@@ -293,38 +303,46 @@ export default function EditPlaceForm({
     ) {
       const file = files[index];
 
-      const extension =
-        file.name
-          .split(".")
-          .pop()
-          ?.toLowerCase() ?? "jpg";
+      const compressedFile =
+        await compressImage(file);
+
+      console.log(
+        `Gallery image ${index + 1}: ${(file.size / 1024 / 1024).toFixed(2)} MB → ${(compressedFile.size / 1024).toFixed(0)} KB`
+      );
 
       const filePath =
-        `${safeSlug}/gallery-${Date.now()}-${index}.${extension}`;
+        `${safeSlug}/gallery-${Date.now()}-${index}.webp`;
 
       const { error: uploadError } =
         await supabase.storage
           .from("place-images")
-          .upload(filePath, file, {
-            cacheControl: "3600",
-            upsert: false,
-            contentType: file.type,
-          });
+          .upload(
+            filePath,
+            compressedFile,
+            {
+              cacheControl: "3600",
+              upsert: false,
+              contentType:
+                compressedFile.type,
+            }
+          );
 
       if (uploadError) {
         throw uploadError;
       }
 
-      const { data } = supabase.storage
-        .from("place-images")
-        .getPublicUrl(filePath);
+      const { data } =
+        supabase.storage
+          .from("place-images")
+          .getPublicUrl(filePath);
 
       const { error: insertError } =
         await supabase
           .from("placeImages")
           .insert({
             placeId: place.id,
-            imageUrl: data.publicUrl,
+            imageUrl:
+              data.publicUrl,
             sortOrder:
               existingMaxSortOrder +
               index +

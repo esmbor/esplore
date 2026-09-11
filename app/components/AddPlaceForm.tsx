@@ -9,6 +9,7 @@ import {
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 import { categories } from "../data/categories";
+import { compressImage } from "../lib/compressImage";
 
 export default function AddPlaceForm() {
   const router = useRouter();
@@ -109,33 +110,41 @@ export default function AddPlaceForm() {
     file: File,
     slug: string
   ) {
-    const safeSlug = createSafeSlug(slug);
+    const compressedFile =
+      await compressImage(file);
 
-    const extension =
-      file.name
-        .split(".")
-        .pop()
-        ?.toLowerCase() ?? "jpg";
+    console.log(
+      `Main image: ${(file.size / 1024 / 1024).toFixed(2)} MB → ${(compressedFile.size / 1024).toFixed(0)} KB`
+    );
+
+    const safeSlug =
+      createSafeSlug(slug);
 
     const filePath =
-      `${safeSlug}/main-${Date.now()}.${extension}`;
+      `${safeSlug}/main-${Date.now()}.webp`;
 
     const { error: uploadError } =
       await supabase.storage
         .from("place-images")
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: false,
-          contentType: file.type,
-        });
+        .upload(
+          filePath,
+          compressedFile,
+          {
+            cacheControl: "3600",
+            upsert: false,
+            contentType:
+              compressedFile.type,
+          }
+        );
 
     if (uploadError) {
       throw uploadError;
     }
 
-    const { data } = supabase.storage
-      .from("place-images")
-      .getPublicUrl(filePath);
+    const { data } =
+      supabase.storage
+        .from("place-images")
+        .getPublicUrl(filePath);
 
     return data.publicUrl;
   }
@@ -147,7 +156,8 @@ export default function AddPlaceForm() {
   ) {
     if (files.length === 0) return;
 
-    const safeSlug = createSafeSlug(slug);
+    const safeSlug =
+      createSafeSlug(slug);
 
     for (
       let index = 0;
@@ -156,31 +166,38 @@ export default function AddPlaceForm() {
     ) {
       const file = files[index];
 
-      const extension =
-        file.name
-          .split(".")
-          .pop()
-          ?.toLowerCase() ?? "jpg";
+      const compressedFile =
+        await compressImage(file);
+
+      console.log(
+        `Gallery image ${index + 1}: ${(file.size / 1024 / 1024).toFixed(2)} MB → ${(compressedFile.size / 1024).toFixed(0)} KB`
+      );
 
       const filePath =
-        `${safeSlug}/gallery-${Date.now()}-${index}.${extension}`;
+        `${safeSlug}/gallery-${Date.now()}-${index}.webp`;
 
       const { error: uploadError } =
         await supabase.storage
           .from("place-images")
-          .upload(filePath, file, {
-            cacheControl: "3600",
-            upsert: false,
-            contentType: file.type,
-          });
+          .upload(
+            filePath,
+            compressedFile,
+            {
+              cacheControl: "3600",
+              upsert: false,
+              contentType:
+                compressedFile.type,
+            }
+          );
 
       if (uploadError) {
         throw uploadError;
       }
 
-      const { data } = supabase.storage
-        .from("place-images")
-        .getPublicUrl(filePath);
+      const { data } =
+        supabase.storage
+          .from("place-images")
+          .getPublicUrl(filePath);
 
       const { error: insertError } =
         await supabase
