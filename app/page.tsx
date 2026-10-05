@@ -41,7 +41,7 @@ export default async function HomePage() {
           <p className="mt-6 max-w-2xl text-lg leading-8 text-stone-600">
             From tiny coffee bars and memorable restaurants to scenic stops,
             local markets and places I stumbled across by accident. This is a
-            collection of the places that stood out enough to remember — and
+            collection of the places that stood out enough to remember and
             that I would happily recommend to someone else.
           </p>
 
